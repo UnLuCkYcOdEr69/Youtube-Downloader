@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Downloader</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #fff;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Animated Background */
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('https://www.transparenttextures.com/patterns/cubes.png');
+            opacity: 0.2;
+            z-index: -1;
+            animation: moveBg 10s linear infinite;
+        }
+        @keyframes moveBg {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0); }
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(15px);
+            text-align: center;
+            width: 95%;
+            max-width: 550px;
+            position: relative;
+        }
+        h2 {
+            font-weight: 600;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        input {
+            width: 100%;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 10px;
+            border: none;
+            outline: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            font-size: 18px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        input:focus {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+        }
+        button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            font-weight: 500;
+        }
+        .btn-video {
+            background: #28a745;
+        }
+        .btn-video:hover {
+            background: #218838;
+        }
+        .btn-audio {
+            background: #ff5722;
+        }
+        .btn-audio:hover {
+            background: #e64a19;
+        }
+
+        /* Sliding Alert Box */
+        .alert-box {
+            position: fixed;
+            top: 20px;
+            right: -350px; /* Initially hidden */
+            background: #ff4444; /* Default red */
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            transition: right 0.5s ease-in-out, background-color 0.3s ease-in-out !important; /* Smooth transition */
+            z-index: 999;
+        }
+
+        .alert-box.show {
+            right: 20px; /* Slide in */
+        }
+
+        /* Loader */
+        .loader-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .loader-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .loader {
+            width: 50px;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            padding: 3px;
+            background: 
+                radial-gradient(farthest-side, #ffa516 95%, #0000) 50% 0/12px 12px no-repeat,
+                radial-gradient(farthest-side, #0000 calc(100% - 5px), #ffa516 calc(100% - 4px)) content-box;
+            animation: l6 2s infinite linear;
+        }
+        @keyframes l6 { 
+            to { transform: rotate(1turn); } 
+        }
+        .processing-text {
+            font-size: 18px;
+            font-weight: 500;
+            color: #ffeb3b;
+        }
+
+        /* Footer */
+        .footer {
+            position: absolute;
+            bottom: 10px;
+            text-align: center;
+            width: 100%;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 400;
+            backdrop-filter: blur(10px);
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>YouTube Downloader</h2>
+        <input type="text" id="url" placeholder="Paste YouTube URL here">
+        
+        <div class="buttons">
+            <button class="btn-video" onclick="download('video')"><i class="fas fa-video"></i> Download Video</button>
+            <button class="btn-audio" onclick="download('audio')"><i class="fas fa-music"></i> Download MP3</button>
+        </div>
+        
+        <!-- Loader -->
+        <div class="loader-container" id="loader-container">
+            <div class="loader-box">
+                <div class="loader"></div>
+                <span class="processing-text">Processing...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sliding Alert Box -->
+    <div class="alert-box" id="alert-box"></div>
+
+    <!-- Footer -->
+    <div class="footer">
+        Made by Aman Das | 2025
+    </div>
+
+    <script>
+        function showAlert(message, color = "#ff4444") {
+            let alertBox = document.getElementById("alert-box");
+
+            alertBox.textContent = message;
+
+            // Force immediate color update
+            alertBox.style.backgroundColor = color;
+
+            // Make sure it's visible
+            alertBox.style.right = "20px";
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                alertBox.style.right = "-350px"; // Slide out
+            }, 3000);
+        }
+
+        function download(type) {
+            let url = document.getElementById("url").value;
+            if (!url) {
+                showAlert("Please enter a YouTube URL");
+                return;
+            }
+
+            showAlert("Download Started", "#28a745"); // Green for start
+
+            let loaderContainer = document.getElementById("loader-container");
+            loaderContainer.style.display = "flex";
+
+            let formData = new FormData();
+            formData.append("url", url);
+
+            fetch(type === "video" ? "/download" : "/download_audio", {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                let link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = type === "video" ? "video.mp4" : "audio.mp3";
+                link.click();
+
+                loaderContainer.style.display = "none";
+
+                // ✅ Show "Download Complete" alert in Blue
+                showAlert("Download Complete", "#2196F3");
+            })
+            .catch(error => {
+                loaderContainer.style.display = "none";
+                showAlert("Error: " + error, "#ff4444");
+            });
+        }
+
+    </script>
+</body>
+</html>

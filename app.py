@@ -36,6 +36,7 @@ def download_video():
                 }
             ],
             "quiet": True
+            
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

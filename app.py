@@ -1,21 +1,40 @@
 import os
 import re
-import subprocess
 from flask import Flask, render_template, request, send_file, jsonify
 import yt_dlp
 
 app = Flask(__name__)
+
 DOWNLOAD_FOLDER = "downloads"
+COOKIES_FILE = "cookies.txt"
+
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
-def sanitize_filename(title):
-    """Remove invalid characters from filenames"""
-    return re.sub(r'[\\/*?:"<>|]', "", title)
+# ===============================
+# Create cookies.txt from ENV (Render)
+# ===============================
+if not os.path.exists(COOKIES_FILE):
+    cookies = os.environ.get("YT_COOKIES")
+    if cookies:
+        with open(COOKIES_FILE, "w", encoding="utf-8") as f:
+            f.write(cookies)
 
+# ===============================
+# Helpers
+# ===============================
+def sanitize_filename(name):
+    return re.sub(r'[\\/*?:"<>|]', "", name)
+
+# ===============================
+# Routes
+# ===============================
 @app.route("/")
 def index():
     return render_template("index.html")
 
+# ===============================
+# VIDEO DOWNLOAD (MP4 + AUDIO)
+# ===============================
 @app.route("/download", methods=["POST"])
 def download_video():
     url = request.form.get("url")
@@ -23,30 +42,34 @@ def download_video():
         return jsonify({"error": "No URL provided"}), 400
 
     try:
-        sanitized_title = sanitize_filename(url.split("=")[-1])  
-        final_path = os.path.join(DOWNLOAD_FOLDER, f"{sanitized_title}.mp4")
-
         ydl_opts = {
-            "outtmpl": final_path.replace(".mp4", ".%(ext)s"),  
-            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",  # Ensure correct video & audio format
-            "postprocessors": [
-                {
-                    "key": "FFmpegVideoConvertor",
-                    "preferedformat": "mp4",  # Convert & merge into MP4
+            "format": "bv*+ba/b",
+            "merge_output_format": "mp4",
+            "outtmpl": f"{DOWNLOAD_FOLDER}/%(title)s.%(ext)s",
+            "cookies": COOKIES_FILE,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android"]
                 }
-            ],
-            "quiet": True
-            
+            },
+            "noplaylist": True,
+            "quiet": True,
+            "no_warnings": True,
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            final_file = filename.rsplit(".", 1)[0] + ".mp4"
 
-        return send_file(final_path, as_attachment=True)
+        return send_file(final_file, as_attachment=True)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ===============================
+# AUDIO DOWNLOAD (MP3)
+# ===============================
 @app.route("/download_audio", methods=["POST"])
 def download_audio():
     url = request.form.get("url")
@@ -54,12 +77,15 @@ def download_audio():
         return jsonify({"error": "No URL provided"}), 400
 
     try:
-        sanitized_title = sanitize_filename(url.split("=")[-1])
-        final_path = os.path.join(DOWNLOAD_FOLDER, f"{sanitized_title}.mp3")
-
         ydl_opts = {
-            "outtmpl": final_path.replace(".mp3", ".%(ext)s"),  
             "format": "bestaudio/best",
+            "outtmpl": f"{DOWNLOAD_FOLDER}/%(title)s.%(ext)s",
+            "cookies": COOKIES_FILE,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android"]
+                }
+            },
             "postprocessors": [
                 {
                     "key": "FFmpegExtractAudio",
@@ -67,16 +93,23 @@ def download_audio():
                     "preferredquality": "192",
                 }
             ],
-            "quiet": True
+            "noplaylist": True,
+            "quiet": True,
+            "no_warnings": True,
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            final_file = filename.rsplit(".", 1)[0] + ".mp3"
 
-        return send_file(final_path, as_attachment=True)
+        return send_file(final_file, as_attachment=True)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ===============================
+# Run App
+# ===============================
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)
